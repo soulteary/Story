@@ -31,3 +31,16 @@ node_modules
 
 # Optional REPL history
 .node_repl_history
+
+# intellj
+*.iml
+.idea/
+
+# content
+content/posts/*
+content/archive/*
+!content/posts/Hello World.md
+
+
+# macos
+.DS_Store

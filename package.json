@@ -1,0 +1,42 @@
+{
+  "name": "story.md",
+  "version": "0.0.3",
+  "description": "Tell a story, easier.",
+  "main": "index.js",
+  "bin": {
+    "note": "bin/cli"
+  },
+  "scripts": {
+    "convert": "bin/cli.js -c=../My-Blog-Posts/posts --dist=../HexoBlog/source/_posts/",
+    "ct": "bin/cli.js -c=../My-Blog-Posts/posts --dist=../HexoBlog/source/_posts/ --less=1",
+    "reset": "bin/cli.js -d"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soulteary/Story.git"
+  },
+  "keywords": [
+    "note"
+  ],
+  "author": "Su Yang <soulteary@gmail.com> (http://soulteary.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/soulteary/Story/issues"
+  },
+  "homepage": "https://github.com/soulteary/Story#readme",
+  "dependencies": {
+    "better-console": "^0.2.4",
+    "moment": "^2.14.1",
+    "story-fs": "0.0.9",
+    "story-generate-archive": "0.0.3",
+    "story-generate-category": "0.0.1",
+    "story-generate-feed": "0.0.1",
+    "story-generate-page": "0.0.1",
+    "story-generate-sitemap": "0.0.1",
+    "story-generate-tag": "0.0.1",
+    "story-render-markdown": "0.0.1",
+    "story-route": "0.0.1",
+    "story-theme-default": "0.0.1",
+    "story-utils": "0.0.7"
+  }
+}
