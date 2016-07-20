@@ -4,7 +4,7 @@
   "description": "Tell a story, easier.",
   "main": "index.js",
   "bin": {
-    "note": "bin/cli"
+    "note": "bin/cli.js"
   },
   "scripts": {
     "convert": "bin/cli.js -c=../My-Blog-Posts/posts --dist=../HexoBlog/source/_posts/",
