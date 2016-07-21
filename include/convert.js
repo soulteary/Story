@@ -101,10 +101,11 @@ function generatePost (post, config, json) {
     } else {
         if (!json.date) {
             json.date = getPostDate(post);
+            postDate = moment(new Date(json.date)).format('YYYY-MM-DD HH:mm:ss');
             errorhandle({code: 14, post: post});
+        } else {
+            postDate = moment(new Date(json.date.replace('+0000', '+8'))).format('YYYY-MM-DD HH:mm:ss');
         }
-
-        postDate = moment(new Date(json.date.replace('+0000', '+8'))).format('YYYY-MM-DD HH:mm:ss');
     }
 
     json.category = trimArray(json.category);
