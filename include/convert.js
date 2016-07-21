@@ -19,9 +19,15 @@ function trimArray (arr) {
     return arr ? arr.filter(function (v) {return v;}) : [];
 }
 
+/**
+ * check string contain chinese chars
+ * @param str
+ * @returns {Array|{index: number, input: string}|*}
+ */
 function containChinese (str) {
     return str.match(/.*[\u4e00-\u9fa5]+.*$/);
 }
+
 
 function errorhandle (param) {
     //code, post, config, meta, content, dist
@@ -66,12 +72,22 @@ function errorhandle (param) {
         case 13:
             showWarnning && console.warn('[目标路径不存在, 尝试创建路径]', param.dist);
             break;
+        case 14:
+            showWarnning && console.warn('[META文件缺少日期属性, 尝试通过其他方式获取]', param.post);
+            break;
 
     }
     return false;
 }
 
-function makeupPost (post, config, json) {
+/**
+ * generate post to file
+ * @param post
+ * @param config
+ * @param json
+ * @returns {Promise.<TResult>}
+ */
+function generatePost (post, config, json) {
 
     let postDate = null;
     if (config.virtual) {
@@ -83,6 +99,11 @@ function makeupPost (post, config, json) {
             errorhandle({code: 11, post: post});
         }
     } else {
+        if (!json.date) {
+            json.date = getPostDate(post);
+            errorhandle({code: 14, post: post});
+        }
+
         postDate = moment(new Date(json.date.replace('+0000', '+8'))).format('YYYY-MM-DD HH:mm:ss');
     }
 
@@ -212,8 +233,12 @@ function makeupPost (post, config, json) {
     });
 }
 
-function getVirtualMeta (post, config) {
-
+/**
+ * Get Post Date
+ * @param post
+ * @returns {*}
+ */
+function getPostDate (post) {
     // date
     let date = null;
     let pathDate = path.dirname(post).match(/\d{4}\/\d{2}\/\d{2}$/);
@@ -223,6 +248,20 @@ function getVirtualMeta (post, config) {
     } else {
         date = fs.statSync(post).ctime.getTime();
     }
+
+    return date;
+}
+
+
+/**
+ * generate virtual meta info
+ * @param post
+ * @param config
+ * @returns {{date: *, slug: *, title: string}}
+ */
+function getVirtualMeta (post, config) {
+
+    let date = getPostDate(post);
 
     // slug
     let slug = path.basename(post);
@@ -277,7 +316,7 @@ function parseHexo (data) {
             config.virtual = true;
             jsonContent = getVirtualMeta(post, config);
         }
-        return makeupPost(post, config, jsonContent);
+        return generatePost(post, config, jsonContent);
     });
 
     return result;
