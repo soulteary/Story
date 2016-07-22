@@ -75,7 +75,9 @@ function errorhandle (param) {
         case 14:
             showWarnning && console.warn('[META文件缺少日期属性, 尝试通过其他方式获取]', param.post);
             break;
-
+        case 15:
+            console.error('component dist 出现问题.', param.post, param.msg);
+            break;
     }
     return false;
 }
@@ -295,7 +297,6 @@ function getVirtualMeta (post, config) {
 }
 
 function parseHexo (data) {
-
     if (data.less && typeof data.less === 'number') data.post.splice(0, data.post.length - data.less);
 
     let result = true;
@@ -317,7 +318,21 @@ function parseHexo (data) {
             config.virtual = true;
             jsonContent = getVirtualMeta(post, config);
         }
-        return generatePost(post, config, jsonContent);
+        if (data.transformComponents) {
+            let componentsPath = path.dirname(post)
+                .replace(process.env.PWD + '/posts', process.env.PWD)
+                .replace(process.env.PWD, config.dist);
+            config.dist = componentsPath;
+        }
+        return fs.exists(config.dist).then(function (exist) {
+            if (!exist) {
+                fs.mkdirs(config.dist);
+                errorhandle({code: 13, dist: config.dist});
+            }
+            return generatePost(post, config, jsonContent);
+        }).catch(function (e) {
+            return errorhandle({code: 15, msg: e, post: post});
+        });
     });
 
     return result;
@@ -326,6 +341,8 @@ function parseHexo (data) {
 module.exports = function (argv) {
     console.info('CLI argv:');
     console.info(argv);
+
+    let useComponentsTransform = argv['transform-components'];
     if (argv.convert && argv.dist) {
         fs.exists(argv.dist).then(function (exist) {
             if (!exist) {
@@ -333,9 +350,41 @@ module.exports = function (argv) {
                 errorhandle({code: 13, dist: argv.dist});
             }
             util.posts.scanDir(argv.convert, []).then(function (resp) {
-                return util.posts.sortOutPath(resp).then(function (data) {
+                let listData = [];
+
+                if (useComponentsTransform) {
+                    for (var i = 0, j = resp.length; i < j; i++) {
+                        let curItem = resp[i];
+                        let relativePath = curItem.replace((process.env.PWD + '/posts/components').replace('//', '/'), '');
+
+                        if (relativePath.match(/^\/\w+\/demo/)) {
+                            let demoPath = curItem.replace(process.env.PWD + '/posts', argv.dist);
+                            let demoBase = path.dirname(demoPath);
+
+                            fs.exists(demoBase).then(function (exist) {
+                                if (!exist) fs.mkdirs(demoBase);
+                                if (demoPath.split('/').pop().indexOf('.') > -1) {
+                                    return fs.readFile(curItem).then(function (content) {
+                                        return fs.writeFile(demoPath, content);
+                                    });
+                                }
+                                // errorhandle({code: 13, dist: config.dist});
+                            }).catch(function (e) {
+                                console.log(e)
+                                //  return errorhandle({code: 15, msg: e, post: post});
+                            });
+                        } else {
+                            listData.push(resp[i]);
+                        }
+                    }
+                } else {
+                    listData = resp;
+                }
+
+                return util.posts.sortOutPath(listData).then(function (data) {
                     data.dist = argv.dist;
                     data.less = argv.less;
+                    data.transformComponents = useComponentsTransform;
                     delete data.dir;
                     return parseHexo(data);
                 });
