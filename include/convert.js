@@ -215,16 +215,21 @@ function generatePost(post, config, json) {
         });
 
         const distPath = path.resolve(config.dist, decodeURIComponent(json.slug) + '.md');
-
         return fs.stat(distPath).then(function () {
-            return handleErrors({
-                code: 6,
-                post: post,
-                config: config,
-                meta: postMeta,
-                content: content,
-                dist: distPath
-            });
+            if (!config.overwrite) {
+                return handleErrors({
+                    code: 6,
+                    post: post,
+                    config: config,
+                    meta: postMeta,
+                    content: content,
+                    dist: distPath
+                });
+            } else {
+                let ctx = content.toString();
+                ctx = ctx.replace(/^(\s+)?#\s*.+\n/, '');
+                return fs.writeFile(distPath, postMeta + ctx);
+            }
         }).catch(function (e) {
             if (e.errno === -2) {
                 let ctx = content.toString();
@@ -324,6 +329,11 @@ function parseHexo(data) {
                 .replace(process.env.PWD, config.dist);
             config.dist = componentsPath;
         }
+
+        if (data.overwrite) {
+            config.overwrite = true;
+        }
+
         return fs.exists(config.dist).then(function (exist) {
             if (!exist) {
                 fs.mkdirs(config.dist);
@@ -343,6 +353,8 @@ module.exports = function (argv) {
     console.info(argv);
 
     let useComponentsTransform = argv['transform-components'];
+    let forceOverwrite = argv['overwrite'];
+
     if (argv.convert && argv.dist) {
         fs.exists(argv.dist).then(function (exist) {
             if (!exist) {
@@ -385,6 +397,7 @@ module.exports = function (argv) {
                 return util.posts.sortOutPath(listData).then(function (data) {
                     data.dist = argv.dist;
                     data.less = argv.less;
+                    data.overwrite = forceOverwrite;
                     data.transformComponents = useComponentsTransform;
                     delete data.dir;
                     return parseHexo(data);
