@@ -15,8 +15,10 @@ const suffix = '.html';
  * @param arr
  * @returns {*}
  */
-function trimArray (arr) {
-    return arr ? arr.filter(function (v) {return v;}) : [];
+function trimArray(arr) {
+    return arr ? arr.filter(function (v) {
+        return v;
+    }) : [];
 }
 
 /**
@@ -24,12 +26,12 @@ function trimArray (arr) {
  * @param str
  * @returns {Array|{index: number, input: string}|*}
  */
-function containChinese (str) {
+function containChinese(str) {
     return str.match(/.*[\u4e00-\u9fa5]+.*$/);
 }
 
 
-function handleErrors (param) {
+function handleErrors(param) {
     //code, post, config, meta, content, dist
     switch (param.code) {
         case 1:
@@ -89,7 +91,7 @@ function handleErrors (param) {
  * @param json
  * @returns {Promise.<TResult>}
  */
-function generatePost (post, config, json) {
+function generatePost(post, config, json) {
 
     let postDate = null;
     if (config.virtual) {
@@ -118,8 +120,8 @@ function generatePost (post, config, json) {
             json.alias = [json.alias];
         } else {
             if (!Array.isArray(json.alias)) return handleErrors({
-                code  : 1,
-                post  : post,
+                code: 1,
+                post: post,
                 config: config
             });
         }
@@ -136,24 +138,24 @@ function generatePost (post, config, json) {
     postMeta.push(separ);
 
     if (!json.title) return handleErrors({
-        code  : 2,
-        post  : post,
+        code: 2,
+        post: post,
         config: config
     });
     postMeta.push(`title: "${json.title}"`);
 
     if (!json.slug) return handleErrors({
-        code  : 3,
-        post  : post,
+        code: 3,
+        post: post,
         config: config,
-        meta  : postMeta
+        meta: postMeta
     });
 
     if (!json.date) return handleErrors({
-        code  : 4,
-        post  : post,
+        code: 4,
+        post: post,
         config: config,
-        meta  : postMeta
+        meta: postMeta
     });
     postMeta.push(`date: "${postDate}"`);
 
@@ -205,10 +207,10 @@ function generatePost (post, config, json) {
         let content = contentBuffer.toString();
 
         if (!content) return handleErrors({
-            code   : 5,
-            post   : post,
-            config : config,
-            meta   : postMeta,
+            code: 5,
+            post: post,
+            config: config,
+            meta: postMeta,
             content: content
         });
 
@@ -216,12 +218,12 @@ function generatePost (post, config, json) {
 
         return fs.stat(distPath).then(function () {
             return handleErrors({
-                code   : 6,
-                post   : post,
-                config : config,
-                meta   : postMeta,
+                code: 6,
+                post: post,
+                config: config,
+                meta: postMeta,
                 content: content,
-                dist   : distPath
+                dist: distPath
             });
         }).catch(function (e) {
             if (e.errno === -2) {
@@ -240,7 +242,7 @@ function generatePost (post, config, json) {
  * @param post
  * @returns {*}
  */
-function getPostDate (post) {
+function getPostDate(post) {
     // date
     let date = null;
     let pathDate = path.dirname(post).match(/\d{4}\/\d{2}\/\d{2}$/);
@@ -260,7 +262,7 @@ function getPostDate (post) {
  * @param post
  * @returns {{date: *, slug: *, title: string}}
  */
-function getVirtualMeta (post) {
+function getVirtualMeta(post) {
 
     let date = getPostDate(post);
 
@@ -288,13 +290,13 @@ function getVirtualMeta (post) {
     }
 
     return {
-        date : date,
-        slug : slug,
+        date: date,
+        slug: slug,
         title: title
     };
 }
 
-function parseHexo (data) {
+function parseHexo(data) {
     if (data.less && typeof data.less === 'number') data.post.splice(0, data.post.length - data.less);
 
     let result = true;
@@ -347,7 +349,8 @@ module.exports = function (argv) {
                 fs.mkdirs(argv.dist);
                 handleErrors({code: 13, dist: argv.dist});
             }
-            util.posts.scanDir(argv.convert, []).then(function (resp) {
+
+            function convertList(resp) {
                 let listData = [];
 
                 if (useComponentsTransform) {
@@ -369,7 +372,7 @@ module.exports = function (argv) {
                                 // handleErrors({code: 13, dist: config.dist});
                             }).catch(function (e) {
                                 console.log(e);
-                                //  return handleErrors({code: 15, msg: e, post: post});
+                                // return handleErrors({code: 15, msg: e, post: post});
                             });
                         } else {
                             listData.push(resp[i]);
@@ -386,9 +389,20 @@ module.exports = function (argv) {
                     delete data.dir;
                     return parseHexo(data);
                 });
-            }).catch(function (err) {
-                return handleErrors({code: 8, msg: err});
-            });
+            }
+
+
+            let targetIsFile = fs.statSync(argv.convert).isFile();
+
+            if (targetIsFile) {
+                convertList([argv.convert])
+            } else {
+                util.posts.scanDir(argv.convert, [])
+                    .then(convertList)
+                    .catch(function (err) {
+                        return handleErrors({code: 8, msg: err});
+                    });
+            }
         }).catch(function (err) {
             return handleErrors({code: 12, msg: err})
         });
