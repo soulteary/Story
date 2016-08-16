@@ -1,6 +1,6 @@
 {
   "name": "story.md",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Tell a story, easier.",
   "main": "index.js",
   "bin": {
