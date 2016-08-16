@@ -1,4 +1,4 @@
-'use strict'
+'use strict';
 
 const path = require('path');
 const util = require('story-utils');
@@ -29,7 +29,7 @@ function containChinese (str) {
 }
 
 
-function errorhandle (param) {
+function handleErrors (param) {
     //code, post, config, meta, content, dist
     switch (param.code) {
         case 1:
@@ -53,13 +53,13 @@ function errorhandle (param) {
         case 7:
             console.error('写入文件失败', param.post);
             console.log('失败原因', param.msg);
-            break
+            break;
         case 8:
             console.error('[扫描文件失败]', param.msg);
-            break
+            break;
         case 9:
             console.error('CLI argv error.');
-            break
+            break;
         case 10:
             console.error('Post Meta Json error.', param.post);
             break;
@@ -98,13 +98,13 @@ function generatePost (post, config, json) {
         } catch (e) {
             // 如果转换发生错误,使用当前时间
             postDate = moment(new Date()).format('YYYY-MM-DD HH:mm:ss');
-            errorhandle({code: 11, post: post});
+            handleErrors({code: 11, post: post});
         }
     } else {
         if (!json.date) {
             json.date = getPostDate(post);
             postDate = moment(new Date(json.date)).format('YYYY-MM-DD HH:mm:ss');
-            errorhandle({code: 14, post: post});
+            handleErrors({code: 14, post: post});
         } else {
             postDate = moment(new Date(json.date.replace('+0000', '+8'))).format('YYYY-MM-DD HH:mm:ss');
         }
@@ -117,7 +117,7 @@ function generatePost (post, config, json) {
         if (typeof json.alias === 'string') {
             json.alias = [json.alias];
         } else {
-            if (!Array.isArray(json.alias)) return errorhandle({
+            if (!Array.isArray(json.alias)) return handleErrors({
                 code  : 1,
                 post  : post,
                 config: config
@@ -135,21 +135,21 @@ function generatePost (post, config, json) {
 
     postMeta.push(separ);
 
-    if (!json.title) return errorhandle({
+    if (!json.title) return handleErrors({
         code  : 2,
         post  : post,
         config: config
     });
     postMeta.push(`title: "${json.title}"`);
 
-    if (!json.slug) return errorhandle({
+    if (!json.slug) return handleErrors({
         code  : 3,
         post  : post,
         config: config,
         meta  : postMeta
     });
 
-    if (!json.date) return errorhandle({
+    if (!json.date) return handleErrors({
         code  : 4,
         post  : post,
         config: config,
@@ -204,19 +204,18 @@ function generatePost (post, config, json) {
     return fs.readFile(post).then(function (contentBuffer) {
         let content = contentBuffer.toString();
 
-        if (!content) return errorhandle({
+        if (!content) return handleErrors({
             code   : 5,
             post   : post,
             config : config,
             meta   : postMeta,
-            content: content,
-            dist   : distPath
+            content: content
         });
 
         const distPath = path.resolve(config.dist, decodeURIComponent(json.slug) + '.md');
 
         return fs.stat(distPath).then(function () {
-            return errorhandle({
+            return handleErrors({
                 code   : 6,
                 post   : post,
                 config : config,
@@ -230,7 +229,7 @@ function generatePost (post, config, json) {
                 ctx = ctx.replace(/^(\s+)?#\s*.+\n/, '');
                 return fs.writeFile(distPath, postMeta + ctx);
             } else {
-                return errorhandle({code: 7, post: post, msg: e});
+                return handleErrors({code: 7, post: post, msg: e});
             }
         });
     });
@@ -259,10 +258,9 @@ function getPostDate (post) {
 /**
  * generate virtual meta info
  * @param post
- * @param config
  * @returns {{date: *, slug: *, title: string}}
  */
-function getVirtualMeta (post, config) {
+function getVirtualMeta (post) {
 
     let date = getPostDate(post);
 
@@ -312,7 +310,7 @@ function parseHexo (data) {
                 jsonContent = fs.readJSONSync(metaPath);
             } catch (e) {
                 result = false;
-                return errorhandle({code: 10, post: post, error: e});
+                return handleErrors({code: 10, post: post, error: e});
             }
         } else {
             config.virtual = true;
@@ -320,18 +318,18 @@ function parseHexo (data) {
         }
         if (data.transformComponents) {
             let componentsPath = path.dirname(post)
-                .replace(process.env.PWD + '/posts', process.env.PWD)
+                .replace(path.join(process.env.PWD, '/posts/components'), process.env.PWD)
                 .replace(process.env.PWD, config.dist);
             config.dist = componentsPath;
         }
         return fs.exists(config.dist).then(function (exist) {
             if (!exist) {
                 fs.mkdirs(config.dist);
-                errorhandle({code: 13, dist: config.dist});
+                handleErrors({code: 13, dist: config.dist});
             }
             return generatePost(post, config, jsonContent);
         }).catch(function (e) {
-            return errorhandle({code: 15, msg: e, post: post});
+            return handleErrors({code: 15, msg: e, post: post});
         });
     });
 
@@ -347,7 +345,7 @@ module.exports = function (argv) {
         fs.exists(argv.dist).then(function (exist) {
             if (!exist) {
                 fs.mkdirs(argv.dist);
-                errorhandle({code: 13, dist: argv.dist});
+                handleErrors({code: 13, dist: argv.dist});
             }
             util.posts.scanDir(argv.convert, []).then(function (resp) {
                 let listData = [];
@@ -355,12 +353,12 @@ module.exports = function (argv) {
                 if (useComponentsTransform) {
                     for (var i = 0, j = resp.length; i < j; i++) {
                         let curItem = resp[i];
-                        let relativePath = curItem.replace((process.env.PWD + '/posts/components').replace('//', '/'), '');
+                        // todo 目录可以被重新指定, 避免转换source目录造成watch下的循环转换
+                        let relativePath = curItem.replace(path.join(process.env.PWD, '/posts'), '');
 
-                        if (relativePath.match(/^\/\w+\/demo/)) {
-                            let demoPath = curItem.replace(process.env.PWD + '/posts', argv.dist);
+                        if (relativePath.match(/^\/components\/\w+\/demo/)) {
+                            let demoPath = curItem.replace(path.join(process.env.PWD, '/posts/components'), argv.dist);
                             let demoBase = path.dirname(demoPath);
-
                             fs.exists(demoBase).then(function (exist) {
                                 if (!exist) fs.mkdirs(demoBase);
                                 if (demoPath.split('/').pop().indexOf('.') > -1) {
@@ -368,10 +366,10 @@ module.exports = function (argv) {
                                         return fs.writeFile(demoPath, content);
                                     });
                                 }
-                                // errorhandle({code: 13, dist: config.dist});
+                                // handleErrors({code: 13, dist: config.dist});
                             }).catch(function (e) {
-                                console.log(e)
-                                //  return errorhandle({code: 15, msg: e, post: post});
+                                console.log(e);
+                                //  return handleErrors({code: 15, msg: e, post: post});
                             });
                         } else {
                             listData.push(resp[i]);
@@ -389,12 +387,12 @@ module.exports = function (argv) {
                     return parseHexo(data);
                 });
             }).catch(function (err) {
-                return errorhandle({code: 8, msg: err});
+                return handleErrors({code: 8, msg: err});
             });
         }).catch(function (err) {
-            return errorhandle({code: 12, msg: err})
+            return handleErrors({code: 12, msg: err})
         });
     } else {
-        return errorhandle({code: 9});
+        return handleErrors({code: 9});
     }
 };
