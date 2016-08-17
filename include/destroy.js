@@ -1,14 +1,15 @@
-'use strict'
-
+'use strict';
 const fs = require('story-fs');
 
 module.exports = function (target) {
     return new Promise(function (resolve, reject) {
-        console.log('clean website item');
-        fs.del(target).then(function () {
-            resolve(true);
+        return fs.del(target).then(function () {
+            console.log('clean website item');
+            return resolve(true);
         }).then(function (e) {
-            reject(e);
+            return reject(e);
+        }).catch(function (e) {
+            return reject(e)
         });
     });
 };
