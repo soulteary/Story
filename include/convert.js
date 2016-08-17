@@ -128,6 +128,7 @@ function generatePost(post, config, json) {
     }
 
     // todo 处理同名
+    // append: 目前按照目录结构存放, 处理同名规则应该优先判断是否存在真实的文件
 
     // make sure alias field exist
     json.alias = trimArray(json.alias);
@@ -214,7 +215,9 @@ function generatePost(post, config, json) {
             content: content
         });
 
-        const distPath = path.resolve(config.dist, decodeURIComponent(json.slug) + '.md');
+
+        let distRootDir = path.dirname(post.replace('posts', 'source'));
+        const distPath = path.resolve(distRootDir, decodeURIComponent(json.slug) + '.md');
         return fs.stat(distPath).then(function () {
             if (!config.overwrite) {
                 return handleErrors({
@@ -305,7 +308,6 @@ function parseHexo(data) {
     if (data.less && typeof data.less === 'number') data.post.splice(0, data.post.length - data.less);
 
     let result = true;
-
     data.post.map(function (post) {
         let metaPath = post.slice(0, -2) + 'json';
         let config = {};
@@ -322,12 +324,6 @@ function parseHexo(data) {
         } else {
             config.virtual = true;
             jsonContent = getVirtualMeta(post, config);
-        }
-        if (data.transformComponents) {
-            let componentsPath = path.dirname(post)
-                .replace(path.join(process.env.PWD, '/posts/components'), process.env.PWD)
-                .replace(process.env.PWD, config.dist);
-            config.dist = componentsPath;
         }
 
         if (data.overwrite) {
@@ -353,6 +349,7 @@ module.exports = function (argv) {
     console.info(argv);
 
     let useComponentsTransform = argv['transform-components'];
+    let keepDirStruct = argv['keep-dir-struct'];
     let forceOverwrite = argv['overwrite'];
 
     if (argv.convert && argv.dist) {
@@ -365,29 +362,25 @@ module.exports = function (argv) {
             function convertList(resp) {
                 let listData = [];
 
-                if (useComponentsTransform) {
+                const basePostRootDir = path.join(process.env.PWD, '/posts');
+
+                if (keepDirStruct) {
                     for (var i = 0, j = resp.length; i < j; i++) {
                         let curItem = resp[i];
-                        // todo 目录可以被重新指定, 避免转换source目录造成watch下的循环转换
-                        let relativePath = curItem.replace(path.join(process.env.PWD, '/posts'), '');
-
-                        if (relativePath.match(/^\/components\/\w+\/demo/)) {
-                            let demoPath = curItem.replace(path.join(process.env.PWD, '/posts/components'), argv.dist);
-                            let demoBase = path.dirname(demoPath);
-                            fs.exists(demoBase).then(function (exist) {
-                                if (!exist) fs.mkdirs(demoBase);
-                                if (demoPath.split('/').pop().indexOf('.') > -1) {
-                                    return fs.readFile(curItem).then(function (content) {
-                                        return fs.writeFile(demoPath, content);
-                                    });
-                                }
-                                // handleErrors({code: 13, dist: config.dist});
-                            }).catch(function (e) {
-                                console.log(e);
-                                // return handleErrors({code: 15, msg: e, post: post});
-                            });
+                        let distPath = curItem.replace(argv.convert, argv.dist);
+                        if (fs.statSync(curItem).isFile()) {
+                            fs.mkdirsSync(path.dirname(distPath));
+                            if (curItem.split('/').pop().match(/\.md$/)) {
+                                listData.push(curItem);
+                            } else {
+                                fs.readFile(curItem).then(function (content) {
+                                    return fs.writeFile(distPath, content);
+                                });
+                            }
+                        } else if (fs.statSync(curItem).isDirectory()) {
+                            fs.mkdirsSync(distPath);
                         } else {
-                            listData.push(resp[i]);
+                            console.log('ignore other');
                         }
                     }
                 } else {
@@ -398,7 +391,6 @@ module.exports = function (argv) {
                     data.dist = argv.dist;
                     data.less = argv.less;
                     data.overwrite = forceOverwrite;
-                    data.transformComponents = useComponentsTransform;
                     delete data.dir;
                     return parseHexo(data);
                 });
