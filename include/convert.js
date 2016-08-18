@@ -345,10 +345,11 @@ function parseHexo(data) {
 }
 
 module.exports = function (argv) {
-    console.info('CLI argv:');
-    console.info(argv);
+    if (argv.verbose) {
+        console.info('CLI argv:');
+        console.info(argv);
+    }
 
-    let useComponentsTransform = argv['transform-components'];
     let keepDirStruct = argv['keep-dir-struct'];
     let forceOverwrite = argv['overwrite'];
 
@@ -361,8 +362,6 @@ module.exports = function (argv) {
 
             function convertList(resp) {
                 let listData = [];
-
-                const basePostRootDir = path.join(process.env.PWD, '/posts');
 
                 if (keepDirStruct) {
                     for (var i = 0, j = resp.length; i < j; i++) {
@@ -395,7 +394,6 @@ module.exports = function (argv) {
                     return parseHexo(data);
                 });
             }
-
 
             let targetIsFile = fs.statSync(argv.convert).isFile();
 
