@@ -1,4 +1,5 @@
 'use strict';
+
 const fs = require('story-fs');
 
 module.exports = function (target) {

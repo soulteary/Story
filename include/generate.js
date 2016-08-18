@@ -1,3 +1,5 @@
+'use strict';
+
 //var generateCategory = require('story-generate-category');
 //var generateFeed = require('story-generate-feed');
 //var generatePage = require('story-generate-page');

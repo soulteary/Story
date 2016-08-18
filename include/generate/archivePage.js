@@ -1,3 +1,5 @@
+'use strict';
+
 const archive = require('story-generate-archive');
 const postApi = require('story-utils').posts;
 const path = require('path');
@@ -13,7 +15,7 @@ module.exports = function () {
         // mkdirs for archive
         .then(function (pathData) {
             const option = {
-                postsRootDir  : postsRootDir,
+                postsRootDir: postsRootDir,
                 archiveRootDir: archiveRootDir
             };
             return archive.prepareDirs(pathData.dir, option)

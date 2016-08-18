@@ -204,45 +204,46 @@ function generatePost(post, config, json) {
 
     postMeta = postMeta.join('\n');
 
-    return fs.readFile(post).then(function (contentBuffer) {
-        let content = contentBuffer.toString();
+    return fs.readFile(post)
+        .then(function (contentBuffer) {
+            let content = contentBuffer.toString();
 
-        if (!content) return handleErrors({
-            code: 5,
-            post: post,
-            config: config,
-            meta: postMeta,
-            content: content
-        });
+            if (!content) return handleErrors({
+                code: 5,
+                post: post,
+                config: config,
+                meta: postMeta,
+                content: content
+            });
 
-
-        let distRootDir = path.dirname(post.replace('posts', 'source'));
-        const distPath = path.resolve(distRootDir, decodeURIComponent(json.slug) + '.md');
-        return fs.stat(distPath).then(function () {
-            if (!config.overwrite) {
-                return handleErrors({
-                    code: 6,
-                    post: post,
-                    config: config,
-                    meta: postMeta,
-                    content: content,
-                    dist: distPath
+            let distRootDir = path.dirname(post.replace('posts', 'source'));
+            const distPath = path.resolve(distRootDir, decodeURIComponent(json.slug) + '.md');
+            return fs.stat(distPath)
+                .then(function () {
+                    if (!config.overwrite) {
+                        return handleErrors({
+                            code: 6,
+                            post: post,
+                            config: config,
+                            meta: postMeta,
+                            content: content,
+                            dist: distPath
+                        });
+                    } else {
+                        let ctx = content.toString();
+                        ctx = ctx.replace(/^(\s+)?#\s*.+\n/, '');
+                        return fs.writeFile(distPath, postMeta + ctx);
+                    }
+                }).catch(function (e) {
+                    if (e.errno === -2) {
+                        let ctx = content.toString();
+                        ctx = ctx.replace(/^(\s+)?#\s*.+\n/, '');
+                        return fs.writeFile(distPath, postMeta + ctx);
+                    } else {
+                        return handleErrors({code: 7, post: post, msg: e});
+                    }
                 });
-            } else {
-                let ctx = content.toString();
-                ctx = ctx.replace(/^(\s+)?#\s*.+\n/, '');
-                return fs.writeFile(distPath, postMeta + ctx);
-            }
-        }).catch(function (e) {
-            if (e.errno === -2) {
-                let ctx = content.toString();
-                ctx = ctx.replace(/^(\s+)?#\s*.+\n/, '');
-                return fs.writeFile(distPath, postMeta + ctx);
-            } else {
-                return handleErrors({code: 7, post: post, msg: e});
-            }
         });
-    });
 }
 
 /**
@@ -308,38 +309,80 @@ function parseHexo(data) {
     if (data.less && typeof data.less === 'number') data.post.splice(0, data.post.length - data.less);
 
     let result = true;
-    data.post.map(function (post) {
-        let metaPath = post.slice(0, -2) + 'json';
-        let config = {};
-        config.dist = data.dist;
 
-        let jsonContent = null;
-        if (data.meta.indexOf(metaPath) > -1) {
-            try {
-                jsonContent = fs.readJSONSync(metaPath);
-            } catch (e) {
-                result = false;
-                return handleErrors({code: 10, post: post, error: e});
+    function parseQueue(arr) {
+        return arr.reduce(function (promiseFactory, post) {
+            let metaPath = post.slice(0, -2) + 'json';
+            let config = {};
+            config.dist = data.dist;
+
+            let jsonContent = null;
+            if (data.meta.indexOf(metaPath) > -1) {
+                try {
+                    jsonContent = fs.readJSONSync(metaPath);
+                } catch (e) {
+                    result = false;
+                    return handleErrors({code: 10, post: post, error: e});
+                }
+            } else {
+                config.virtual = true;
+                jsonContent = getVirtualMeta(post);
             }
-        } else {
-            config.virtual = true;
-            jsonContent = getVirtualMeta(post, config);
-        }
 
-        if (data.overwrite) {
-            config.overwrite = true;
-        }
-
-        return fs.exists(config.dist).then(function (exist) {
-            if (!exist) {
-                fs.mkdirs(config.dist);
-                handleErrors({code: 13, dist: config.dist});
+            if (data.overwrite) {
+                config.overwrite = true;
             }
-            return generatePost(post, config, jsonContent);
-        }).catch(function (e) {
-            return handleErrors({code: 15, msg: e, post: post});
-        });
-    });
+
+            return promiseFactory
+                .then(fs.exists(config.dist))
+                .then(function (exist) {
+                    if (!exist) {
+                        fs.mkdirs(config.dist);
+                        handleErrors({code: 13, dist: config.dist});
+                    }
+                    return generatePost(post, config, jsonContent);
+                }).catch(function (e) {
+                    return handleErrors({code: 15, msg: e, post: post});
+                });
+        }, Promise.resolve())
+    }
+
+
+    return parseQueue(data.post);
+
+
+    // data.post.map(function (post) {
+    // let metaPath = post.slice(0, -2) + 'json';
+    // let config = {};
+    // config.dist = data.dist;
+
+    // let jsonContent = null;
+    // if (data.meta.indexOf(metaPath) > -1) {
+    //     try {
+    //         jsonContent = fs.readJSONSync(metaPath);
+    //     } catch (e) {
+    //         result = false;
+    //         return handleErrors({code: 10, post: post, error: e});
+    //     }
+    // } else {
+    //     config.virtual = true;
+    //     jsonContent = getVirtualMeta(post, config);
+    // }
+    //
+    // if (data.overwrite) {
+    //     config.overwrite = true;
+    // }
+
+    // return fs.exists(config.dist).then(function (exist) {
+    //     if (!exist) {
+    //         fs.mkdirs(config.dist);
+    //         handleErrors({code: 13, dist: config.dist});
+    //     }
+    //     return generatePost(post, config, jsonContent);
+    // }).catch(function (e) {
+    //     return handleErrors({code: 15, msg: e, post: post});
+    // });
+    // });
 
     return result;
 }
@@ -354,61 +397,62 @@ module.exports = function (argv) {
     let forceOverwrite = argv['overwrite'];
 
     if (argv.convert && argv.dist) {
-        fs.exists(argv.dist).then(function (exist) {
-            if (!exist) {
-                fs.mkdirs(argv.dist);
-                handleErrors({code: 13, dist: argv.dist});
-            }
-
-            function convertList(resp) {
-                let listData = [];
-
-                if (keepDirStruct) {
-                    for (var i = 0, j = resp.length; i < j; i++) {
-                        let curItem = resp[i];
-                        let distPath = curItem.replace(argv.convert, argv.dist);
-                        if (fs.statSync(curItem).isFile()) {
-                            fs.mkdirsSync(path.dirname(distPath));
-                            if (curItem.split('/').pop().match(/\.md$/)) {
-                                listData.push(curItem);
-                            } else {
-                                fs.readFile(curItem).then(function (content) {
-                                    return fs.writeFile(distPath, content);
-                                });
-                            }
-                        } else if (fs.statSync(curItem).isDirectory()) {
-                            fs.mkdirsSync(distPath);
-                        } else {
-                            console.log('ignore other');
-                        }
-                    }
-                } else {
-                    listData = resp;
+        return fs.exists(argv.dist)
+            .then(function (exist) {
+                if (!exist) {
+                    fs.mkdirs(argv.dist);
+                    handleErrors({code: 13, dist: argv.dist});
                 }
 
-                return util.posts.sortOutPath(listData).then(function (data) {
-                    data.dist = argv.dist;
-                    data.less = argv.less;
-                    data.overwrite = forceOverwrite;
-                    delete data.dir;
-                    return parseHexo(data);
-                });
-            }
+                function convertList(resp) {
+                    let listData = [];
 
-            let targetIsFile = fs.statSync(argv.convert).isFile();
+                    if (keepDirStruct) {
+                        for (var i = 0, j = resp.length; i < j; i++) {
+                            let curItem = resp[i];
+                            let distPath = curItem.replace(argv.convert, argv.dist);
+                            if (fs.statSync(curItem).isFile()) {
+                                fs.mkdirsSync(path.dirname(distPath));
+                                if (curItem.split('/').pop().match(/\.md$/)) {
+                                    listData.push(curItem);
+                                } else {
+                                    fs.readFile(curItem).then(function (content) {
+                                        return fs.writeFile(distPath, content);
+                                    });
+                                }
+                            } else if (fs.statSync(curItem).isDirectory()) {
+                                fs.mkdirsSync(distPath);
+                            } else {
+                                console.log('ignore other');
+                            }
+                        }
+                    } else {
+                        listData = resp;
+                    }
 
-            if (targetIsFile) {
-                convertList([argv.convert])
-            } else {
-                util.posts.scanDir(argv.convert, [])
-                    .then(convertList)
-                    .catch(function (err) {
-                        return handleErrors({code: 8, msg: err});
+                    return util.posts.sortOutPath(listData).then(function (data) {
+                        data.dist = argv.dist;
+                        data.less = argv.less;
+                        data.overwrite = forceOverwrite;
+                        delete data.dir;
+                        return parseHexo(data);
                     });
-            }
-        }).catch(function (err) {
-            return handleErrors({code: 12, msg: err})
-        });
+                }
+
+                let targetIsFile = fs.statSync(argv.convert).isFile();
+
+                if (targetIsFile) {
+                    return convertList([argv.convert])
+                } else {
+                    return util.posts.scanDir(argv.convert, [])
+                        .then(convertList)
+                        .catch(function (err) {
+                            return handleErrors({code: 8, msg: err});
+                        });
+                }
+            }).catch(function (err) {
+                return handleErrors({code: 12, msg: err})
+            });
     } else {
         return handleErrors({code: 9});
     }
