@@ -1,6 +1,6 @@
 {
   "name": "story.md",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Tell a story, easier.",
   "main": "index.js",
   "bin": {
@@ -27,8 +27,8 @@
   "dependencies": {
     "better-console": "^0.2.4",
     "moment": "^2.14.1",
-    "story-fs": "0.0.9",
-    "story-generate-archive": "0.0.3",
+    "story-fs": "0.0.10",
+    "story-generate-archive": "0.0.4",
     "story-generate-category": "0.0.1",
     "story-generate-feed": "0.0.1",
     "story-generate-page": "0.0.1",
@@ -37,6 +37,6 @@
     "story-render-markdown": "0.0.1",
     "story-route": "0.0.1",
     "story-theme-default": "0.0.1",
-    "story-utils": "0.0.7"
+    "story-utils": "0.0.8"
   }
 }

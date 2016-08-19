@@ -8,20 +8,18 @@ const path = require('path');
 const postsRootDir = path.resolve(__dirname, '../../content/posts');
 const archiveRootDir = path.resolve(__dirname, '../../content/archive');
 
-module.exports = function () {
-    return postApi.scanDir(postsRootDir, ['.DS_Store', '/posts', 'posts/README.md'])
-        // sort out path which is needed.
-        .then(postApi.sortOutPath)
-        // mkdirs for archive
-        .then(function (pathData) {
-            const option = {
-                postsRootDir: postsRootDir,
-                archiveRootDir: archiveRootDir
-            };
-            return archive.prepareDirs(pathData.dir, option)
-                .then(archive.generate(pathData.dir, option))
-        })
-        .catch(function (e) {
-            console.log('err', e);
-        });
+module.exports = function() {
+  return postApi.scanDir(postsRootDir, ['.DS_Store', '/posts', 'posts/README.md'])
+      .then(postApi.sortOutPath)      // sort out path which is needed.
+      .then(function(pathData) {      // mkdirs for archive
+        const option = {
+          postsRootDir: postsRootDir,
+          archiveRootDir: archiveRootDir
+        };
+        return archive.prepareDirs(pathData.dir, option)
+            .then(archive.generate(pathData.dir, option));
+      })
+      .catch(function(e) {
+        console.log('err', e);
+      });
 };

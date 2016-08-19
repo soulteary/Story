@@ -8,13 +8,13 @@
 
 var generateArchive = require('./generate/archivePage');
 
-module.exports = function () {
-    return new Promise(function (resolve, reject) {
-        console.log('begin generate website');
-        try {
-            return resolve(generateArchive());
-        } catch (e) {
-            return reject(e);
-        }
-    });
+module.exports = function() {
+  return new Promise(function(resolve, reject) {
+    console.log('begin generate website');
+    try {
+      resolve(generateArchive());
+    } catch (e) {
+      reject(e);
+    }
+  });
 };
