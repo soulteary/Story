@@ -242,7 +242,8 @@ function generatePost(post, config, json) {
           if (postShort.split('/')[1] === postDist.split('/').pop()) {
             distRootDir = path.dirname(post.replace(postBase, postDist.substring(0, postDist.lastIndexOf('/'))));
           } else {
-            distRootDir = path.dirname(post.replace(postBase, postDist));
+            // 强制去掉watch中可能存在的重复目录
+            distRootDir = path.dirname(post.replace(postBase, postDist)).replace(path.dirname(postShort), '');
           }
         } else {
           distRootDir = path.dirname(post.replace('posts', 'source'));
