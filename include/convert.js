@@ -232,7 +232,22 @@ function generatePost(post, config, json) {
           });
         }
 
-        let distRootDir = path.dirname(post.replace('posts', 'source'));
+        let distRootDir = null;
+
+        if (config.notSyncMetaFile) {
+          let postBase = post.substring(0, post.indexOf('/posts') + '/posts'.length);
+          let postShort = post.replace(postBase, '');
+          let postDist = path.resolve(process.env.PWD, config.dist);
+
+          if (postShort.split('/')[1] === postDist.split('/').pop()) {
+            distRootDir = path.dirname(post.replace(postBase, postDist.substring(0, postDist.lastIndexOf('/'))));
+          } else {
+            distRootDir = path.dirname(post.replace(postBase, postDist));
+          }
+        } else {
+          distRootDir = path.dirname(post.replace('posts', 'source'));
+        }
+
         const distPath = path.resolve(distRootDir, decodeURIComponent(json.slug) + '.md');
         return fs.stat(distPath)
             .then(function() {
@@ -342,7 +357,8 @@ function parseHexo(data) {
       config.dist = data.dist;
 
       let jsonContent = null;
-      if (data.meta.indexOf(metaPath) > -1) {
+
+      if (fs.existsSync(metaPath) || data.meta.indexOf(metaPath) > -1) {
         try {
           jsonContent = fs.readJSONSync(metaPath);
         } catch (e) {
@@ -356,6 +372,10 @@ function parseHexo(data) {
 
       if (data.overwrite) {
         config.overwrite = true;
+      }
+
+      if (data.notSyncMetaFile) {
+        config.notSyncMetaFile = true;
       }
 
       return promiseFactory
@@ -417,6 +437,7 @@ module.exports = function(argv) {
   }
 
   let keepDirStruct = argv['keep-dir-struct'];
+  let notSyncMetaFile = argv['not-sync-meta-file'] || true;
   let forceOverwrite = argv.overwrite;
 
   if (argv.convert && argv.dist) {
@@ -439,7 +460,18 @@ module.exports = function(argv) {
                   if (curItem.split('/').pop().match(/\.md$/)) {
                     listData.push(curItem);
                   } else {
-                    fs.readFile(curItem).then(function(content) {
+                    let syncFile = true;
+                    if (notSyncMetaFile) {
+                      try {
+                        let isExist = fs.existsSync(curItem.replace(/\.json$/, '.md'));
+                        if (isExist) {
+                          syncFile = false;
+                        }
+                      } catch (e) {
+                        // todo ignore error;
+                      }
+                    }
+                    syncFile && fs.readFile(curItem).then(function(content) {
                       return fs.writeFile(distPath, content);
                     });
                   }
@@ -450,13 +482,16 @@ module.exports = function(argv) {
                 }
               }
             } else {
+              // todo
               listData = resp;
             }
 
             return util.posts.sortOutPath(listData).then(function(data) {
               data.dist = argv.dist;
               data.less = argv.less;
+              data.notSyncMetaFile = notSyncMetaFile;
               data.overwrite = forceOverwrite;
+
               delete data.dir;
               return parseHexo(data);
             });
