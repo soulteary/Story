@@ -366,6 +366,11 @@ function parseHexo(data) {
           result = false;
           return handleErrors({code: 10, post: post, error: e});
         }
+
+        if (jsonContent.status !== 'published') {
+          return Promise.resolve(true);
+        }
+
       } else {
         config.virtual = true;
         jsonContent = getVirtualMeta(post);
